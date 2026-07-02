@@ -1,7 +1,9 @@
 {
+  "build": {
+    "buildCommand": "apt-get install -y nodejs npm && npm install -g @bcharleson/linkedincli && pip install -r requirements.txt"
+  },
   "deploy": {
     "startCommand": "uvicorn main:app --host 0.0.0.0 --port 8000",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 30
+    "healthcheckPath": "/health"
   }
 }
