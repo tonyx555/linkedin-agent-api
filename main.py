@@ -95,3 +95,9 @@ def search_people(req: SearchRequest):
         f"&q=all"
         f"&filters=List(resultType->PEOPLE)"
     )
+    @app.get("/contact/{profile_id}")
+def get_contact_info(profile_id: str):
+    return voyager_get(
+        f"/identity/profiles/{profile_id}/profileContactInfo"
+    )
+
