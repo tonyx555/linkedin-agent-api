@@ -25,8 +25,10 @@ class SearchRequest(BaseModel):
 
 class ConnectRequest(BaseModel):
     profileId: str
-    
     message: str
+
+class PostSearchRequest(BaseModel):
+    keywords: str
 
 @app.get("/health")
 def health():
@@ -51,7 +53,6 @@ def inbox():
 
 @app.post("/connect")
 def connect(req: ConnectRequest):
-    # Connection requests need a POST to Voyager
     headers = {
         "cookie": f"li_at={LI_AT}; JSESSIONID={JSESSIONID}",
         "csrf-token": JSESSIONID.strip('"'),
@@ -73,9 +74,7 @@ def connect(req: ConnectRequest):
         }
     )
     return {"status": res.status_code, "response": res.text}
-class PostSearchRequest(BaseModel):
-    keywords: str
-    
+
 @app.post("/search/posts")
 def search_posts(req: PostSearchRequest):
     encoded = req.keywords.replace(" ", "%20")
@@ -95,9 +94,9 @@ def search_people(req: SearchRequest):
         f"&q=all"
         f"&filters=List(resultType->PEOPLE)"
     )
-    @app.get("/contact/{profile_id}")
+
+@app.get("/contact/{profile_id}")
 def get_contact_info(profile_id: str):
     return voyager_get(
         f"/identity/profiles/{profile_id}/profileContactInfo"
     )
-
