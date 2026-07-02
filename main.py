@@ -25,6 +25,7 @@ class SearchRequest(BaseModel):
 
 class ConnectRequest(BaseModel):
     profileId: str
+    
     message: str
 
 @app.get("/health")
@@ -72,3 +73,25 @@ def connect(req: ConnectRequest):
         }
     )
     return {"status": res.status_code, "response": res.text}
+class PostSearchRequest(BaseModel):
+    keywords: str
+    
+@app.post("/search/posts")
+def search_posts(req: PostSearchRequest):
+    encoded = req.keywords.replace(" ", "%20")
+    return voyager_get(
+        f"/search/blended?keywords={encoded}"
+        f"&origin=GLOBAL_SEARCH_HEADER"
+        f"&q=all"
+        f"&filters=List(resultType->CONTENT)"
+    )
+
+@app.post("/search/people")
+def search_people(req: SearchRequest):
+    encoded = req.query.replace(" ", "%20")
+    return voyager_get(
+        f"/search/blended?keywords={encoded}"
+        f"&origin=GLOBAL_SEARCH_HEADER"
+        f"&q=all"
+        f"&filters=List(resultType->PEOPLE)"
+    )
