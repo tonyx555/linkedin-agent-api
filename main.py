@@ -6,9 +6,8 @@ from pydantic import BaseModel
 
 app = FastAPI()
 
-# Cookie-based auth — no browser/display needed
-LI_AT = os.environ.get("LINKEDIN_LI_AT")
-JSESSIONID = os.environ.get("LINKEDIN_JSESSIONID")
+LI_AT = os.environ.get("LINKEDIN_LI_AT", "")
+JSESSIONID = os.environ.get("LINKEDIN_JSESSIONID", "")
 
 def run_cli(args: list) -> dict:
     env = {
@@ -25,15 +24,6 @@ def run_cli(args: list) -> dict:
     except:
         return {"error": result.stderr or result.stdout}
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-@app.post("/search")
-def search(req: SearchRequest):
-    return run_cli(["search", "people", 
-                    "--keywords", req.query])
-
 class SearchRequest(BaseModel):
     query: str
 
@@ -41,9 +31,18 @@ class ConnectRequest(BaseModel):
     profileId: str
     message: str
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+@app.post("/search")
+def search(req: SearchRequest):
+    return run_cli(["person", "search",
+                    "--keywords", req.query])
+
 @app.post("/connect")
 def connect(req: ConnectRequest):
-    return run_cli(["connections", "add", 
+    return run_cli(["connections", "add",
                     req.profileId, "-m", req.message])
 
 @app.post("/message")
