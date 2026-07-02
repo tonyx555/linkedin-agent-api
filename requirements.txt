@@ -1,4 +1,4 @@
 fastapi
 uvicorn
-linkedin-agent-cli
-playwright
+@bcharleson/linkedincli
+
