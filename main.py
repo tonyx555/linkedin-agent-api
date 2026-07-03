@@ -88,11 +88,11 @@ def search_posts(req: PostSearchRequest):
 @app.post("/search/people")
 def search_people(req: SearchRequest):
     encoded = req.query.replace(" ", "%20")
+    # Try without the filter first
     return voyager_get(
         f"/search/blended?keywords={encoded}"
         f"&origin=GLOBAL_SEARCH_HEADER"
         f"&q=all"
-        f"&filters=List(resultType->PEOPLE)"
     )
 
 @app.get("/contact/{profile_id}")
