@@ -7,6 +7,7 @@ app = FastAPI()
 
 LI_AT = os.environ.get("LINKEDIN_LI_AT", "")
 JSESSIONID = os.environ.get("LINKEDIN_JSESSIONID", "")
+EXA_KEY = os.environ.get("9e5e69bb-4d35-49a0-9101-87e4277a30d2", "")
 
 def voyager_get(path: str) -> dict:
     headers = {
@@ -38,13 +39,41 @@ def health():
 def me():
     return voyager_get("/me")
 
-@app.post("/search")
-def search(req: SearchRequest):
-    encoded = req.query.replace(" ", "%20")
-    return voyager_get(
-        f"/search/blended?keywords={encoded}"
-        f"&origin=GLOBAL_SEARCH_HEADER"
-        f"&q=all"
+@app.post("/search/people")
+def search_people(req: SearchRequest):
+    if not EXA_KEY:
+        return {"error": "EXA_API_KEY not configured"}
+    
+    res = requests.post(
+        "https://api.exa.ai/search",
+        headers={
+            "x-api-key": EXA_KEY,
+            "Content-Type": "application/json"
+        },
+        json={
+            "query": f"site:linkedin.com/in {req.query}",
+            "numResults": 20,
+            "contents": {
+                "text": True
+            }
+        }
+    )
+    data = res.json()
+    
+    # Format results as LinkedIn profiles
+    results = []
+    for r in data.get("results", []):
+        profileId = r.get("url", "").split("/in/")[-1].strip("/").split("/")[0]
+        results.append({
+            "name": r.get("title", ""),
+            "profileUrl": r.get("url", ""),
+            "profileId": profileId,
+            "headline": r.get("text", "")[:150] if r.get("text") else "",
+            "source": "exa"
+        })
+    
+    return {"results": results, "count": len(results)}
+
     )
 
 @app.get("/inbox")
