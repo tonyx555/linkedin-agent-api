@@ -39,7 +39,7 @@ def health():
 def me():
     return voyager_get("/me")
 
-@@app.post("/search/people")
+@app.post("/search/people")
 def search_people(req: SearchRequest):
     if not EXA_KEY:
         return {"error": "EXA_API_KEY not configured"}
