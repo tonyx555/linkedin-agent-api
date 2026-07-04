@@ -1,13 +1,19 @@
-import requests
 import os
+import requests
 from fastapi import FastAPI
 from pydantic import BaseModel
+from linkedin_api import Linkedin
 
 app = FastAPI()
 
+LI_EMAIL = os.environ.get("LINKEDIN_EMAIL", "")
+LI_PASSWORD = os.environ.get("LINKEDIN_PASSWORD", "")
 LI_AT = os.environ.get("LINKEDIN_LI_AT", "")
 JSESSIONID = os.environ.get("LINKEDIN_JSESSIONID", "")
 EXA_KEY = os.environ.get("EXA_API_KEY", "")
+
+def get_linkedin_client():
+    return Linkedin(LI_EMAIL, LI_PASSWORD)
 
 def voyager_get(path: str) -> dict:
     headers = {
@@ -69,54 +75,18 @@ def search_people(req: SearchRequest):
         })
     return {"results": results, "count": len(results)}
 
-
-class ConnectRequest(BaseModel):
-    profileId: str
-    message: str
-
 @app.post("/connect")
 def connect(req: ConnectRequest):
-    headers = {
-        "cookie": f"li_at={LI_AT}; JSESSIONID={JSESSIONID}",
-        "csrf-token": JSESSIONID.strip('"'),
-        "x-restli-protocol-version": "2.0.0",
-        "content-type": "application/json",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    }
-    
-    # Use public profile ID directly in the URN format
-    res = requests.post(
-        "https://www.linkedin.com/voyager/api/growth/normInvitations",
-        headers=headers,
-        json={
-            "emberEntityName": "growth/invitation/norm-invitation",
-            "invitee": {
-                "com.linkedin.voyager.growth.invitation.InviteeProfile": {
-                    "profileId": req.profileId
-                }
-            },
-            "message": req.message
-        }
-    )
-    
-    # If 422, try with member URN format
-    if res.status_code == 422:
-        res = requests.post(
-            "https://www.linkedin.com/voyager/api/growth/normInvitations",
-            headers=headers,
-            json={
-                "emberEntityName": "growth/invitation/norm-invitation",
-                "invitee": {
-                    "com.linkedin.voyager.growth.invitation.InviteeProfile": {
-                        "profileId": f"urn:li:fs_miniProfile:{req.profileId}"
-                    }
-                },
-                "message": req.message
-            }
-        )
-    
-    return {"status": res.status_code, "response": res.text}
+    try:
+        api = get_linkedin_client()
+        result = api.add_connection(req.profileId, message=req.message)
+        return {"status": 200, "result": result}
+    except Exception as e:
+        return {"status": 500, "error": str(e)}
 
+@app.get("/inbox")
+def inbox():
+    return voyager_get("/messaging/conversations?keyVersion=LEGACY_INBOX")
 
 @app.post("/search/posts")
 def search_posts(req: PostSearchRequest):
