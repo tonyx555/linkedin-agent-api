@@ -39,7 +39,7 @@ def health():
 def me():
     return voyager_get("/me")
 
-@app.post("/search/people")
+@@app.post("/search/people")
 def search_people(req: SearchRequest):
     if not EXA_KEY:
         return {"error": "EXA_API_KEY not configured"}
@@ -58,19 +58,21 @@ def search_people(req: SearchRequest):
     data = res.json()
     results = []
     for r in data.get("results", []):
-        profileId = r.get("url", "").split("/in/")[-1].strip("/").split("/")[0]
+        url = r.get("url", "")
+        publicId = url.split("/in/")[-1].strip("/").split("/")[0]
         results.append({
             "name": r.get("title", ""),
-            "profileUrl": r.get("url", ""),
-            "profileId": profileId,
+            "profileUrl": url,
+            "profileId": publicId,
             "headline": r.get("text", "")[:150] if r.get("text") else "",
             "source": "exa"
         })
     return {"results": results, "count": len(results)}
 
-@app.get("/inbox")
-def inbox():
-    return voyager_get("/messaging/conversations?keyVersion=LEGACY_INBOX")
+
+class ConnectRequest(BaseModel):
+    profileId: str
+    message: str
 
 @app.post("/connect")
 def connect(req: ConnectRequest):
@@ -82,13 +84,7 @@ def connect(req: ConnectRequest):
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     
-    # First get the full profile to get correct URN
-    profile = voyager_get(f"/identity/profiles/{req.profileId}")
-    entity_urn = profile.get("entityUrn", "")
-    
-    if not entity_urn:
-        return {"error": "Profile not found", "profileId": req.profileId}
-    
+    # Use public profile ID directly in the URN format
     res = requests.post(
         "https://www.linkedin.com/voyager/api/growth/normInvitations",
         headers=headers,
@@ -96,13 +92,31 @@ def connect(req: ConnectRequest):
             "emberEntityName": "growth/invitation/norm-invitation",
             "invitee": {
                 "com.linkedin.voyager.growth.invitation.InviteeProfile": {
-                    "profileId": entity_urn
+                    "profileId": req.profileId
                 }
             },
             "message": req.message
         }
     )
+    
+    # If 422, try with member URN format
+    if res.status_code == 422:
+        res = requests.post(
+            "https://www.linkedin.com/voyager/api/growth/normInvitations",
+            headers=headers,
+            json={
+                "emberEntityName": "growth/invitation/norm-invitation",
+                "invitee": {
+                    "com.linkedin.voyager.growth.invitation.InviteeProfile": {
+                        "profileId": f"urn:li:fs_miniProfile:{req.profileId}"
+                    }
+                },
+                "message": req.message
+            }
+        )
+    
     return {"status": res.status_code, "response": res.text}
+
 
 @app.post("/search/posts")
 def search_posts(req: PostSearchRequest):
