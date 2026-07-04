@@ -1,19 +1,13 @@
-import os
 import requests
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
-from linkedin_api import Linkedin
 
 app = FastAPI()
 
-LI_EMAIL = os.environ.get("LINKEDIN_EMAIL", "")
-LI_PASSWORD = os.environ.get("LINKEDIN_PASSWORD", "")
 LI_AT = os.environ.get("LINKEDIN_LI_AT", "")
 JSESSIONID = os.environ.get("LINKEDIN_JSESSIONID", "")
 EXA_KEY = os.environ.get("EXA_API_KEY", "")
-
-def get_linkedin_client():
-    return Linkedin(LI_EMAIL, LI_PASSWORD)
 
 def voyager_get(path: str) -> dict:
     headers = {
@@ -77,12 +71,37 @@ def search_people(req: SearchRequest):
 
 @app.post("/connect")
 def connect(req: ConnectRequest):
-    try:
-        api = get_linkedin_client()
-        result = api.add_connection(req.profileId, message=req.message)
-        return {"status": 200, "result": result}
-    except Exception as e:
-        return {"status": 500, "error": str(e)}
+    # Step 1: Get profile to extract correct entityUrn
+    profile = voyager_get(f"/identity/profiles/{req.profileId}")
+    
+    mini = profile.get("miniProfile", {})
+    entity_urn = mini.get("entityUrn", "")
+    
+    if not entity_urn:
+        return {"error": f"Profile not found: {req.profileId}"}
+    
+    headers = {
+        "cookie": f"li_at={LI_AT}; JSESSIONID={JSESSIONID}",
+        "csrf-token": JSESSIONID.strip('"'),
+        "x-restli-protocol-version": "2.0.0",
+        "content-type": "application/json",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    res = requests.post(
+        "https://www.linkedin.com/voyager/api/growth/normInvitations",
+        headers=headers,
+        json={
+            "emberEntityName": "growth/invitation/norm-invitation",
+            "invitee": {
+                "com.linkedin.voyager.growth.invitation.InviteeProfile": {
+                    "profileId": entity_urn
+                }
+            },
+            "message": req.message
+        }
+    )
+    return {"status": res.status_code, "response": res.text}
 
 @app.get("/inbox")
 def inbox():
