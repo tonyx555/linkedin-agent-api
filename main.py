@@ -81,6 +81,14 @@ def connect(req: ConnectRequest):
         "content-type": "application/json",
         "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
+    
+    # First get the full profile to get correct URN
+    profile = voyager_get(f"/identity/profiles/{req.profileId}")
+    entity_urn = profile.get("entityUrn", "")
+    
+    if not entity_urn:
+        return {"error": "Profile not found", "profileId": req.profileId}
+    
     res = requests.post(
         "https://www.linkedin.com/voyager/api/growth/normInvitations",
         headers=headers,
@@ -88,7 +96,7 @@ def connect(req: ConnectRequest):
             "emberEntityName": "growth/invitation/norm-invitation",
             "invitee": {
                 "com.linkedin.voyager.growth.invitation.InviteeProfile": {
-                    "profileId": req.profileId
+                    "profileId": entity_urn
                 }
             },
             "message": req.message
