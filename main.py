@@ -122,3 +122,6 @@ def get_contact_info(profile_id: str):
     return voyager_get(
         f"/identity/profiles/{profile_id}/profileContactInfo"
     )
+@app.get("/debug/profile/{profile_id}")
+def debug_profile(profile_id: str):
+    return voyager_get(f"/identity/profiles/{profile_id}")
