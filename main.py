@@ -41,7 +41,23 @@ def me():
 
 @app.get("/debug/profile/{profile_id}")
 def debug_profile(profile_id: str):
-    return voyager_get(f"/identity/profileView/{profile_id}")
+    try:
+        headers = {
+            "cookie": f"li_at={LI_AT}; JSESSIONID={JSESSIONID}",
+            "csrf-token": JSESSIONID.strip('"'),
+            "x-restli-protocol-version": "2.0.0",
+            "x-li-lang": "en_US",
+            "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        url = f"https://www.linkedin.com/voyager/api/identity/profileView/{profile_id}"
+        res = requests.get(url, headers=headers)
+        return {
+            "status_code": res.status_code,
+            "raw_text": res.text[:2000]
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
 
 @app.post("/search/people")
 def search_people(req: SearchRequest):
